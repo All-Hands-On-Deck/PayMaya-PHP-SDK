@@ -7,194 +7,198 @@ use PayMaya\Model\Payment\Buyer;
 
 class Payments
 {
-	const TOKEN_URL_SANDBOX     = 'https://pg-sandbox.paymaya.com/payments/v1/payment-tokens';
-	const PAY_URL_SANDBOX       = 'https://pg-sandbox.paymaya.com/payments/v1/payments';
-	const STATUS_URL_SANDBOX    = 'https://pg-sandbox.paymaya.com/payments/v1/payments/%s';
+    const TOKEN_URL_SANDBOX = 'https://pg-sandbox.paymaya.com/payments/v1/payment-tokens';
+    const PAY_URL_SANDBOX = 'https://pg-sandbox.paymaya.com/payments/v1/payments';
+    const STATUS_URL_SANDBOX = 'https://pg-sandbox.paymaya.com/payments/v1/payments/%s';
 
-	const TOKEN_URL     = 'https://pg.paymaya.com/payments/v1/payment-tokens';
-	const PAY_URL       = 'https://pg.paymaya.com/payments/v1/payments';
-	const STATUS_URL    = 'https://pg.paymaya.com/payments/v1/payments/%s';
+    const TOKEN_URL = 'https://pg.paymaya.com/payments/v1/payment-tokens';
+    const PAY_URL = 'https://pg.paymaya.com/payments/v1/payments';
+    const STATUS_URL = 'https://pg.paymaya.com/payments/v1/payments/%s';
 
-	protected $tokenParams  = array();
-	protected $payParams    = array();
-	protected $key          = NULL;
-	protected $secret       = NULL;
-	protected $env          = false; //default is sandbox 
-	protected $token        = array();
+    protected $tokenParams = array();
+    protected $payParams = array();
+    protected $key = null;
+    protected $secret = null;
+    protected $env = false; //default is sandbox
+    protected $token = array();
 
-	public function __construct($key, $secret, $env = false) 
-	{
-		$this->key      = $key;
-		$this->secret   = $secret;
-		$this->env      = $env; // false = sandbox, true = production
-	}
+    public function __construct($key, $secret, $env = false)
+    {
+        $this->key = $key;
+        $this->secret = $secret;
+        $this->env = $env; // false = sandbox, true = production
+    }
 
-	public function createToken($card = array()) 
-	{
-		
-		// card is required
-		if(empty($card) || !is_object($card)) 
-		{
-			throw new \Exception('Card information missing!');
-		}
+    public function createToken($card = array())
+    {
 
-		// request parameters
-		$this->tokenParams = array('card'    => array(
-			'number'        => $card->number,
-			'cvc'           => $card->cvc,
-			'expMonth'      => $card->expM,
-			'expYear'       => $card->expY));
+        // card is required
+        if (empty($card) || !is_object($card)) {
+            throw new \Exception('Card information missing!');
+        }
 
-		$auth = $this->useKey();
+        // request parameters
+        $this->tokenParams = array('card' => array(
+            'number' => $card->number,
+            'cvc' => $card->cvc,
+            'expMonth' => $card->expM,
+            'expYear' => $card->expY, ));
 
-		$headers = array(
-			'Content-Type:  application/json',
-			'Authorization: Basic '.$auth);
-		
-		$url = self::TOKEN_URL_SANDBOX;
-		if($this->env) {
-			$url = self::TOKEN_URL;
-		}
+        $auth = $this->useKey();
 
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_POST, true);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($this->tokenParams));        
-		$res = curl_exec ($ch);
-		curl_close ($ch);
+        $headers = array(
+            'Content-Type:  application/json',
+            'Authorization: Basic '.$auth, );
 
-		$resArray = json_decode($res, true);
+        $url = self::TOKEN_URL_SANDBOX;
+        if ($this->env) {
+            $url = self::TOKEN_URL;
+        }
 
-		if(!isset($resArray['paymentTokenId'])) {
-			//throw json data
-			if($res) {
-				throw new \Exception($res);
-			}
-			
-			// no response
-			// throw custom message
-			throw new \Exception(json_encode(array(
-				'message' => 'Something went wrong.')));
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($this->tokenParams));
+        $res = curl_exec($ch);
+        curl_close($ch);
 
-		}
-		
-		// decode
-		$token = json_decode($res, true);
-		$this->setToken($token);
+        $resArray = json_decode($res, true);
 
-		return $this;
-	}
+        if (!isset($resArray['paymentTokenId'])) {
+            //throw json data
+            if ($res) {
+                throw new \Exception($res);
+            }
 
-	public function getTokenId() {
-		if (isset($this->token['paymentTokenId']) && $this->token['paymentTokenId']) {
-			return $this->token['paymentTokenId'];
-		}
+            // no response
+            // throw custom message
+            throw new \Exception(json_encode(array(
+                'message' => 'Something went wrong.', )));
+        }
 
-		return false;
-	}
+        // decode
+        $token = json_decode($res, true);
+        $this->setToken($token);
 
-	public function setTokenId($tokenId) {
-		// initialize token array
-		if (!(isset($this->token) && !empty($this->token))) {
-			$this->token = array();
-		}
+        return $this;
+    }
 
-		$this->token['paymentTokenId'] = $tokenId;
-	}
+    public function getTokenId()
+    {
+        if (isset($this->token['paymentTokenId']) && $this->token['paymentTokenId']) {
+            return $this->token['paymentTokenId'];
+        }
 
-	public function getToken() {
-		return $this->token;
-	}
+        return false;
+    }
 
-	public function setToken($token) {
-		$this->token = $token;
-	}
+    public function setTokenId($tokenId)
+    {
+        // initialize token array
+        if (!(isset($this->token) && !empty($this->token))) {
+            $this->token = array();
+        }
 
-	public function pay(Buyer $buyer, Amount $amount) {
-		// check if token is set
-		if(empty($this->token)) {
-			throw new \Exception(json_encode(array(
-				'Message'       => 'Cannot pay without token')));
-		}
+        $this->token['paymentTokenId'] = $tokenId;
+    }
 
-		$auth = $this->useSecret();
+    public function getToken()
+    {
+        return $this->token;
+    }
 
-		$headers = array(
-			'Content-Type:  application/json',
-			'Authorization: Basic '.$auth);
-		
-		$this->payParams = array(
-			'paymentTokenId'    => $this->getTokenId(),
+    public function setToken($token)
+    {
+        $this->token = $token;
+    }
 
-			'totalAmount'       => array(
-				'amount'        => $amount->total,
-				'currency'      => $amount->code),
+    public function pay(Buyer $buyer, Amount $amount)
+    {
+        // check if token is set
+        if (empty($this->token)) {
+            throw new \Exception(json_encode(array(
+                'Message' => 'Cannot pay without token', )));
+        }
 
-			'buyer' => array(
-				'firstName'     => $buyer->firstname,
-				'middleName'    => $buyer->middlename,
-				'lastName'      => $buyer->lastname,
-				'contact'       => array(
-					'phone'     => $buyer->phone,
-					'email'     => $buyer->email),
+        $auth = $this->useSecret();
 
-				'billingAddress'    => array(
-					'line1'         => $buyer->address1,
-					'line2'         => $buyer->address2,
-					'city'          => $buyer->city,
-					'state'         => $buyer->state,
-					'zipCode'       => $buyer->zip,
-					'countryCode'   => $buyer->country)));
-		
-		$url = self::PAY_URL_SANDBOX;
-		if($this->env) {
-			$url = self::PAY_URL;
-		}
+        $headers = array(
+            'Content-Type:  application/json',
+            'Authorization: Basic '.$auth, );
 
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_POST, true);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($this->payParams));      
-		$res = curl_exec ($ch);
+        $this->payParams = array(
+            'paymentTokenId' => $this->getTokenId(),
 
-		curl_close ($ch);
+            'totalAmount' => array(
+                'amount' => $amount->total,
+                'currency' => $amount->code, ),
 
-		return $res;
-	}
+            'buyer' => array(
+                'firstName' => $buyer->firstname,
+                'middleName' => $buyer->middlename,
+                'lastName' => $buyer->lastname,
+                'contact' => array(
+                    'phone' => $buyer->phone,
+                    'email' => $buyer->email, ),
 
-	public function getPaymentStatus($id) {
-		$auth = $this->useSecret();
+                'billingAddress' => array(
+                    'line1' => $buyer->address1,
+                    'line2' => $buyer->address2,
+                    'city' => $buyer->city,
+                    'state' => $buyer->state,
+                    'zipCode' => $buyer->zip,
+                    'countryCode' => $buyer->country, ), ), );
 
-		$headers = array(
-			'Content-Type:  application/json',
-			'Authorization: Basic '.$auth);
+        $url = self::PAY_URL_SANDBOX;
+        if ($this->env) {
+            $url = self::PAY_URL;
+        }
 
-		$url = sprintf(self::STATUS_URL_SANDBOX, $id);
-		if($this->env) {
-			$url = sprintf(self::STATUS_URL, $id);
-		}
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($this->payParams));
+        $res = curl_exec($ch);
 
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		$res = curl_exec ($ch);
+        curl_close($ch);
 
-		curl_close ($ch);
+        return $res;
+    }
 
-		return $res;
+    public function getPaymentStatus($id)
+    {
+        $auth = $this->useSecret();
 
-	}
+        $headers = array(
+            'Content-Type:  application/json',
+            'Authorization: Basic '.$auth, );
 
-	protected function useKey() {
-		return base64_encode($this->key . ':');
-	}
+        $url = sprintf(self::STATUS_URL_SANDBOX, $id);
+        if ($this->env) {
+            $url = sprintf(self::STATUS_URL, $id);
+        }
 
-	protected function useSecret() {
-		return base64_encode($this->secret . ':');
-	}
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        $res = curl_exec($ch);
 
+        curl_close($ch);
+
+        return $res;
+    }
+
+    protected function useKey()
+    {
+        return base64_encode($this->key.':');
+    }
+
+    protected function useSecret()
+    {
+        return base64_encode($this->secret.':');
+    }
 }
