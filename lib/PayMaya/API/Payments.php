@@ -15,12 +15,11 @@ class Payments
     const PAY_URL = 'https://pg.paymaya.com/payments/v1/payments';
     const STATUS_URL = 'https://pg.paymaya.com/payments/v1/payments/%s';
 
-    protected $tokenParams = array();
-    protected $payParams = array();
     protected $key = null;
     protected $secret = null;
     protected $env = false; //default is sandbox
     protected $token = array();
+    protected $redirectUrls = array();
 
     public function __construct($key, $secret, $env = false)
     {
@@ -38,7 +37,7 @@ class Payments
         }
 
         // request parameters
-        $this->tokenParams = array('card' => array(
+        $tokenParams = array('card' => array(
             'number' => $card->number,
             'cvc' => $card->cvc,
             'expMonth' => $card->expM,
@@ -60,7 +59,7 @@ class Payments
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($this->tokenParams));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($tokenParams));
         $res = curl_exec($ch);
         curl_close($ch);
 
@@ -74,8 +73,11 @@ class Payments
 
             // no response
             // throw custom message
-            throw new \Exception(json_encode(array(
-                'message' => 'Something went wrong.', )));
+            throw new \Exception(json_encode(
+                array(
+                    'message' => 'Something went wrong.',
+                )
+            ));
         }
 
         // decode
@@ -114,12 +116,25 @@ class Payments
         $this->token = $token;
     }
 
+    public function getRedirectUrls()
+    {
+        return $this->redirectUrls;
+    }
+
+    public function setRedirectUrls($redirectUrls)
+    {
+        $this->redirectUrls = $redirectUrls;
+    }
+
     public function pay(Buyer $buyer, Amount $amount)
     {
         // check if token is set
         if (empty($this->token)) {
-            throw new \Exception(json_encode(array(
-                'Message' => 'Cannot pay without token', )));
+            throw new \Exception(json_encode(
+                array(
+                    'Message' => 'Cannot pay without token',
+                )
+            ));
         }
 
         $auth = $this->useSecret();
@@ -128,28 +143,49 @@ class Payments
             'Content-Type:  application/json',
             'Authorization: Basic '.$auth, );
 
-        $this->payParams = array(
+        $payParams = array(
             'paymentTokenId' => $this->getTokenId(),
-
             'totalAmount' => array(
                 'amount' => $amount->total,
-                'currency' => $amount->code, ),
-
+                'currency' => $amount->code,
+            ),
             'buyer' => array(
                 'firstName' => $buyer->firstname,
                 'middleName' => $buyer->middlename,
                 'lastName' => $buyer->lastname,
                 'contact' => array(
                     'phone' => $buyer->phone,
-                    'email' => $buyer->email, ),
-
+                    'email' => $buyer->email,
+                ),
                 'billingAddress' => array(
                     'line1' => $buyer->address1,
                     'line2' => $buyer->address2,
                     'city' => $buyer->city,
                     'state' => $buyer->state,
                     'zipCode' => $buyer->zip,
-                    'countryCode' => $buyer->country, ), ), );
+                    'countryCode' => $buyer->country,
+                ),
+            ),
+        );
+
+        // set redirectUrls
+        $redirectUrls = $this->getRedirectUrls();
+        if (isset($redirectUrls) && !empty($redirectUrls)) {
+            // success
+            if (isset($redirectUrls['success']) && $redirectUrls['success']) {
+                $payParams['redirectUrl']['success'] = $redirectUrls['success'];
+            }
+
+            // failure
+            if (isset($redirectUrls['failure']) && $redirectUrls['failure']) {
+                $payParams['redirectUrl']['failure'] = $redirectUrls['failure'];
+            }
+
+            // cancel
+            if (isset($redirectUrls['cancel']) && $redirectUrls['cancel']) {
+                $payParams['redirectUrl']['cancel'] = $redirectUrls['cancel'];
+            }
+        }
 
         $url = self::PAY_URL_SANDBOX;
         if ($this->env) {
@@ -161,7 +197,7 @@ class Payments
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($this->payParams));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payParams));
         $res = curl_exec($ch);
 
         curl_close($ch);
