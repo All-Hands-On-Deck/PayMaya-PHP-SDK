@@ -81,26 +81,35 @@ class Payments
 		}
 		
 		// decode
-		$this->token = json_decode($res, true);
+		$token = json_decode($res, true);
+		$this->setToken($token);
+
 		return $this;
 	}
 
 	public function getTokenId() {
-		if(empty($this->token)) {
-			// return null
-			return null;
+		if (isset($this->token['paymentTokenId']) && $this->token['paymentTokenId']) {
+			return $this->token['paymentTokenId'];
 		}
 
-		return $this->token['paymentTokenId'];
+		return false;
+	}
+
+	public function setTokenId($tokenId) {
+		// initialize token array
+		if (!(isset($this->token) && !empty($this->token))) {
+			$this->token = array();
+		}
+
+		$this->token['paymentTokenId'] = $tokenId;
 	}
 
 	public function getToken() {
-		if(empty($this->token)) {
-			// return empty array
-			return array();
-		}
-
 		return $this->token;
+	}
+
+	public function setToken($token) {
+		$this->token = $token;
 	}
 
 	public function pay(Buyer $buyer, Amount $amount) {
@@ -117,7 +126,7 @@ class Payments
 			'Authorization: Basic '.$auth);
 		
 		$this->payParams = array(
-			'paymentTokenId'    => $this->token['paymentTokenId'],
+			'paymentTokenId'    => $this->getTokenId(),
 
 			'totalAmount'       => array(
 				'amount'        => $amount->total,
